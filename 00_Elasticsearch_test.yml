@@ -196,6 +196,7 @@
     es_group: elasticsearch
     es_config_default: "elasticsearch.j2"
     es_pid_dir: "/var/run/elasticsearch"
+    es_repo_base: "https://artifacts.elastic.co"
 
     
     
