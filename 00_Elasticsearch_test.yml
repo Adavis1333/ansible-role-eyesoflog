@@ -129,7 +129,8 @@
       meta: flush_handlers
 
   vars:
-    es_version: 8.10.c2
+    es_version: 8.10.2
+    es_conf_dir: "/etc/elasticsearch"
     es_data_dirs: 
       - "{{ eol.es_data_dir | default('/opt/elasticsearch/data')}}"
     es_log_dir: "{{ eol.es_log_dir | default('/var/log/eol/elasticsearch/') }}"
