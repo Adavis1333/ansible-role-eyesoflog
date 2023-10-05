@@ -20,7 +20,7 @@
     - name: RedHat - remove unused Elasticsearch repo
       become: yes
       file:
-        path: '/etc/yum.repos.d/elasticsearch-{{ es_other_repo_name }}.repo'
+        path: '/etc/yum.repos.d/elasticsearch-{{ es_version }}.repo'
         state: absent
       when: es_use_repository
 
@@ -197,6 +197,8 @@
     es_config_default: "elasticsearch.j2"
     es_pid_dir: "/var/run/elasticsearch"
     es_repo_base: "https://artifacts.elastic.co"
+    es_use_repository: true
+
 
     
     
