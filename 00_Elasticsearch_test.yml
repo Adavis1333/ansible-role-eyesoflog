@@ -130,6 +130,7 @@
 
   vars:
     es_version: 8.10.2
+    es_conf_dir: "/etc/elasticsearch"
     es_data_dirs: 
       - "{{ eol.es_data_dir | default('/opt/elasticsearch/data')}}"
     es_log_dir: "{{ eol.es_log_dir | default('/var/log/eol/elasticsearch/') }}"
@@ -161,7 +162,16 @@
     es_enable_http_ssl: true
     es_enable_transport_ssl: true
     es_validate_certs: no # See isue https://github.com/elastic/ansible-elasticsearch/issues/679
+    es_start_service: true
+    es_restart_on_change: true
+    es_user: elasticsearch
+    es_group: elasticsearch
+    es_config_default: "elasticsearch.j2"
+    es_pid_dir: "/var/run/elasticsearch"
+
     
+    
+
 # # Générer les certificats et les mettres dans le dossier /files/certs/
 #     es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
 #     #es_ssl_key_password: "{{ eol.cluster.ssl_key_passphrase }}"
