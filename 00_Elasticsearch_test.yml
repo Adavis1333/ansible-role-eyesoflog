@@ -86,50 +86,50 @@
           - restart elasticsearch
 
 
-# SSL Configuration
-    - name: Ensure certificate directory exists
-      become: yes
-      file:
-        dest: "{{ es_ssl_certificate_path }}"
-        state: directory
-        owner: root
-        group: "{{ es_group }}"
-        mode: "750"
-      when: es_ssl_upload
+# # SSL Configuration
+#     - name: Ensure certificate directory exists
+#       become: yes
+#       file:
+#         dest: "{{ es_ssl_certificate_path }}"
+#         state: directory
+#         owner: root
+#         group: "{{ es_group }}"
+#         mode: "750"
+#       when: es_ssl_upload
   
-    - name: Upload SSL/TLS key and certificate
-      become: yes
-      copy:
-        src: "{{ item }}"
-        dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
-        owner: "{{ es_user }}"
-        group: "{{ es_group }}"
-        mode: "640"
-      with_items:
-        - "{{ es_ssl_key }}"
-        - "{{ es_ssl_certificate }}"
-      when: es_ssl_upload and es_ssl_key and es_ssl_certificate
-      #Restart if these change
-      notify: restart elasticsearch
-      register: copy_certificates
+#     - name: Upload SSL/TLS key and certificate
+#       become: yes
+#       copy:
+#         src: "{{ item }}"
+#         dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
+#         owner: "{{ es_user }}"
+#         group: "{{ es_group }}"
+#         mode: "640"
+#       with_items:
+#         - "{{ es_ssl_key }}"
+#         - "{{ es_ssl_certificate }}"
+#       when: es_ssl_upload and es_ssl_key and es_ssl_certificate
+#       #Restart if these change
+#       notify: restart elasticsearch
+#       register: copy_certificates
 
-    - name: Upload SSL Certificate Authority
-      become: yes
-      copy:
-        src: "{{ es_ssl_certificate_authority }}"
-        dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
-        owner: "{{ es_user }}"
-        group: "{{ es_group }}"
-        mode: "640"
-      #Restart if this changes
-      notify: restart elasticsearch
-      when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
+#     - name: Upload SSL Certificate Authority
+#       become: yes
+#       copy:
+#         src: "{{ es_ssl_certificate_authority }}"
+#         dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
+#         owner: "{{ es_user }}"
+#         group: "{{ es_group }}"
+#         mode: "640"
+#       #Restart if this changes
+#       notify: restart elasticsearch
+#       when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
 
     - name: flush handlers
       meta: flush_handlers
 
   vars:
-    es_version: 7.13.0
+    es_version: 8.10.2
     es_data_dirs: 
       - "{{ eol.es_data_dir | default('/opt/elasticsearch/data')}}"
     es_log_dir: "{{ eol.es_log_dir | default('/var/log/eol/elasticsearch/') }}"
@@ -162,11 +162,11 @@
     es_enable_transport_ssl: true
     es_validate_certs: no # See isue https://github.com/elastic/ansible-elasticsearch/issues/679
     
-# Générer les certificats et les mettres dans le dossier /files/certs/
-    es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
-    #es_ssl_key_password: "{{ eol.cluster.ssl_key_passphrase }}"
-    es_ssl_certificate: "files/certs/{{ inventory_hostname }}.crt"
-    es_ssl_certificate_authority: "files/certs/{{ eol.cluster.eol_ca_cert_name }}"
+# # Générer les certificats et les mettres dans le dossier /files/certs/
+#     es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
+#     #es_ssl_key_password: "{{ eol.cluster.ssl_key_passphrase }}"
+#     es_ssl_certificate: "files/certs/{{ inventory_hostname }}.crt"
+#     es_ssl_certificate_authority: "files/certs/{{ eol.cluster.eol_ca_cert_name }}"
 
   handlers:
     - name: reload systemd configuration
