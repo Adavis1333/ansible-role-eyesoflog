@@ -1,0 +1,186 @@
+--- 
+- name: Install Elasticsearch
+  hosts: elasticsearch_nodes
+  vars:
+    elasticsearch_repo_name : "8.x"
+
+  tasks:
+  # Elasticsearch Configuration
+    - name: Create Configuration Directory
+      become: yes
+      file:
+        path: "{{ es_conf_dir }}"
+        state: directory
+        owner: root
+        group: "{{ es_group }}"
+        mode: "2750"
+
+    #Create pid directory
+    - name: Create PID Directory
+      become: yes
+      file:
+        path: "{{ es_pid_dir }}"
+        state: directory
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "755"
+
+    #Create required directories
+    - name: Create Others Directories
+      become: yes
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "2750"
+      with_items:
+        - "{{ es_log_dir }}"
+        - "{{ es_data_dirs }}"
+
+    #Copy the config template
+    - name: Copy Configuration File
+      become: yes
+      template:
+        src: elasticsearch.yml.j2
+        dest: "{{ es_conf_dir }}/elasticsearch.yml"
+        owner: root
+        group: "{{ es_group }}"
+        mode: "660"
+        force: yes
+      register: system_change
+      notify: restart elasticsearch
+
+    #Copy the default file
+    - name: Copy Default File
+      become: yes
+      template:
+        src: "{{ es_config_default }}"
+        dest: "{{ default_file }}"
+        owner: root
+        group: "{{ es_group }}"
+        mode: "660"
+        force: yes
+      notify: restart elasticsearch
+
+    #Copy the systemd specific file if systemd is installed
+    - when: use_system_d and (m_lock_enabled or es_max_open_files is defined)
+      become: yes
+      block:
+        - name: Make sure destination dir exists
+          file:
+            path: "{{ sysd_config_file | dirname }}"
+            state: directory
+            mode: "755"
+
+        - name: Copy specific ElasticSearch Systemd config file
+          template:
+            src: "override.conf.j2"
+            dest: "{{ sysd_config_file }}"
+            owner: root
+            group: "{{ es_group }}"
+            mode: "644"
+            force: yes
+          notify:
+          - reload systemd configuration
+          - restart elasticsearch
+
+
+# SSL Configuration
+    - name: Ensure certificate directory exists
+      become: yes
+      file:
+        dest: "{{ es_ssl_certificate_path }}"
+        state: directory
+        owner: root
+        group: "{{ es_group }}"
+        mode: "750"
+      when: es_ssl_upload
+  
+    - name: Upload SSL/TLS key and certificate
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "640"
+      with_items:
+        - "{{ es_ssl_key }}"
+        - "{{ es_ssl_certificate }}"
+      when: es_ssl_upload and es_ssl_key and es_ssl_certificate
+      #Restart if these change
+      notify: restart elasticsearch
+      register: copy_certificates
+
+    - name: Upload SSL Certificate Authority
+      become: yes
+      copy:
+        src: "{{ es_ssl_certificate_authority }}"
+        dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "640"
+      #Restart if this changes
+      notify: restart elasticsearch
+      when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
+
+    - name: flush handlers
+      meta: flush_handlers
+
+  vars:
+    es_version: 7.13.0
+    es_data_dirs: 
+      - "{{ eol.es_data_dir | default('/opt/elasticsearch/data')}}"
+    es_log_dir: "{{ eol.es_log_dir | default('/var/log/eol/elasticsearch/') }}"
+    es_config:
+      node.name: "{{ inventory_hostname }}"
+      cluster.name: "{{ eol.cluster.name }}"
+      cluster.initial_master_nodes: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
+      discovery.seed_hosts: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_nodes }}"
+      http.port: "{{ eol.cluster.es_api_port }}"
+      transport.port: "{{ eol.cluster.es_transport_port }}"
+      node.roles: "{{ eol['roles'] }}" # Use bracket syntax to avoid adding quotes
+      bootstrap.memory_lock: true
+      network.host: 0.0.0.0
+      xpack.monitoring.collection.enabled: true
+    es_heap_size: "{{ (((ansible_facts['memtotal_mb'] / 1024) | round | int) / 2) | round | int }}g"
+    es_api_port: "{{ eol.cluster.es_api_port }}"
+    es_api_basic_auth_username: "{{ eol.cluster.api_username }}"
+    es_api_basic_auth_password: "{{ eol.cluster.api_password }}"
+    es_users:
+       native:
+        #elastic:
+          #password: "NEWPASSWORD" # Uncomment one time if you want change elastic password and Update group_vars/all api_password after 
+        kibana_system:
+           password: "{{ eol.cluster.kibana_password }}"
+        remote_monitoring_user:
+          password: "{{ eol.cluster.kibana_monitor_password }}"
+    es_delete_unmanaged_native: false
+    es_delete_unmanaged_file: false
+    es_enable_http_ssl: true
+    es_enable_transport_ssl: true
+    es_validate_certs: no # See isue https://github.com/elastic/ansible-elasticsearch/issues/679
+    
+# Générer les certificats et les mettres dans le dossier /files/certs/
+    es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
+    #es_ssl_key_password: "{{ eol.cluster.ssl_key_passphrase }}"
+    es_ssl_certificate: "files/certs/{{ inventory_hostname }}.crt"
+    es_ssl_certificate_authority: "files/certs/{{ eol.cluster.eol_ca_cert_name }}"
+
+  handlers:
+    - name: reload systemd configuration
+      become: yes
+      systemd:
+        daemon_reload: true
+
+    # Restart service and ensure it is enabled
+
+    - name: restart elasticsearch
+      become: yes
+      service: name=elasticsearch state=restarted enabled=yes
+      when:
+        - es_restart_on_change
+        - es_start_service
+      register: es_restarted  
+

@@ -5,7 +5,7 @@
 - name: Install Kibana
   hosts: kibana_nodes
   vars:
-    kibana_repo_name : "7.x"
+    kibana_repo_name : "8.x"
 
   tasks:
     - name: RedHat - add Kibana repo
