@@ -1,5 +1,0 @@
-ansible_host: 172.18.0.76 
-eol:
-  roles: 
-    - master
-    - data

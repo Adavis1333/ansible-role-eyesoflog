@@ -1,6 +1,6 @@
-ansible_host: 172.18.0.141 
+ansible_host: 10.251.19.5
 eol:
-  roles: 
+  roles:
     - master
     - ingest
     - data
