@@ -24,31 +24,6 @@
         state: absent
       when: es_use_repository
 
-    # # Add the elasticsearch user before installing from packages.
-    # - name: Ensure optional elasticsearch group is created with the correct id.
-    #   become: yes
-    #   #Restart if these change
-    #   notify: restart elasticsearch
-    #   group:
-    #     state: present
-    #     name: "{{ es_group }}"
-    #     system: yes
-    #     gid: "{{ es_group_id }}"
-
-    # - name: Ensure optional elasticsearch user is created with the correct id.
-    #   become: yes
-    #   #Restart if these change
-    #   notify: restart elasticsearch
-    #   user:
-    #     state: present
-    #     name: "{{ es_user }}"
-    #     comment: elasticsearch system user
-    #     system: yes
-    #     createhome: no
-    #     uid: "{{ es_user_id }}"
-    #     group: "{{ es_group }}"
-
-
     - name: RedHat - Install Elasticsearch
       become: yes
       yum:
@@ -64,8 +39,8 @@
       file:
         path: "{{ es_conf_dir }}"
         state: directory
-        owner: root
-        group: root
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
         mode: "2750"
 
     #Create pid directory
@@ -95,9 +70,9 @@
     - name: Copy Configuration File
       become: yes
       template:
-        src: elasticsearch.yml.j2
+        src: templates/elasticsearch.yml.j2
         dest: "{{ es_conf_dir }}/elasticsearch.yml"
-        owner: root
+        owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: "660"
         force: yes
@@ -110,11 +85,18 @@
       template:
         src: "{{ es_config_default }}"
         dest: "{{ default_file }}"
-        owner: root
+        owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: "660"
         force: yes
       notify: restart elasticsearch
+
+
+    - name: set fact use_system_d
+      set_fact: use_system_d={{ (ansible_distribution == 'Debian' and ansible_distribution_version is version('8', '>=')) or (ansible_distribution in ['RedHat','CentOS'] and ansible_distribution_version is version('7', '>=')) or (ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('15', '>=')) or (ansible_distribution == 'Amazon' and ansible_distribution_version is version('2', '>=')) }}
+   
+    - name: set fact m_lock_enabled
+      set_fact: m_lock_enabled={{ es_config['bootstrap.memory_lock'] is defined and es_config['bootstrap.memory_lock'] == True }}
 
     #Copy the systemd specific file if systemd is installed
     - when: use_system_d and (m_lock_enabled or es_max_open_files is defined)
@@ -126,11 +108,21 @@
             state: directory
             mode: "755"
 
+    #Copy the systemd specific file if systemd is installed
+    - when: use_system_d is defined
+      become: yes
+      block:
+        - name: Make sure destination dir exists
+          file:
+            path: "{{ sysd_config_file }}"
+            state: directory
+            mode: "755"
+
         - name: Copy specific ElasticSearch Systemd config file
           template:
             src: "override.conf.j2"
             dest: "{{ sysd_config_file }}"
-            owner: root
+            owner: "{{ es_user }}"
             group: "{{ es_group }}"
             mode: "644"
             force: yes
@@ -138,45 +130,96 @@
           - reload systemd configuration
           - restart elasticsearch
 
+    - name: Ensure certificate directory exists
+      become: yes
+      file:
+        dest: "{{ es_ssl_certificate_path }}"
+        state: directory
+        owner: root
+        group: "{{ es_group }}"
+        mode: "750"
+      when: es_ssl_upload
 
-# # SSL Configuration
-#     - name: Ensure certificate directory exists
-#       become: yes
-#       file:
-#         dest: "{{ es_ssl_certificate_path }}"
-#         state: directory
-#         owner: root
-#         group: "{{ es_group }}"
-#         mode: "750"
-#       when: es_ssl_upload
-  
-#     - name: Upload SSL/TLS key and certificate
-#       become: yes
-#       copy:
-#         src: "{{ item }}"
-#         dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
-#         owner: "{{ es_user }}"
-#         group: "{{ es_group }}"
-#         mode: "640"
-#       with_items:
-#         - "{{ es_ssl_key }}"
-#         - "{{ es_ssl_certificate }}"
-#       when: es_ssl_upload and es_ssl_key and es_ssl_certificate
-#       #Restart if these change
-#       notify: restart elasticsearch
-#       register: copy_certificates
+    - name: Upload SSL/TLS key and certificate
+      become: yes
+      copy:
+        src: "{{ item }}"
+        dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "640"
+      with_items:
+        - "{{ es_ssl_key }}"
+        - "{{ es_ssl_certificate }}"
+      when: es_ssl_upload and es_ssl_key and es_ssl_certificate
+      #Restart if these change
+      notify: restart elasticsearch
+      register: copy_certificates
+ 
+    - name: Upload SSL Certificate Authority
+      become: yes
+      copy:
+        src: "{{ es_ssl_certificate_authority }}"
+        dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "640"
+      #Restart if this changes
+      notify: restart elasticsearch
+      when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
 
-#     - name: Upload SSL Certificate Authority
-#       become: yes
-#       copy:
-#         src: "{{ es_ssl_certificate_authority }}"
-#         dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
-#         owner: "{{ es_user }}"
-#         group: "{{ es_group }}"
-#         mode: "640"
-#       #Restart if this changes
-#       notify: restart elasticsearch
-#       when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
+    - name: ensure templates dir is created
+      file:
+        path: "{{ es_conf_dir }}/templates"
+        state: directory
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "2750"
+
+    - name: Copy templates to elasticsearch
+      copy: src={{ item }} dest={{ es_conf_dir }}/templates owner=root group={{ es_group }} mode=0660
+      register: load_templates
+      with_fileglob:
+        - "{{ es_templates_fileglob | default('') }}"
+
+    - name: Install templates
+      uri:
+        url: "{{ es_api_uri }}/_template/{{item | filename}}"
+        method: PUT
+        status_code: 200
+        user: "{{es_api_basic_auth_username | default(omit)}}"
+        password: "{{es_api_basic_auth_password | default(omit)}}"
+        force_basic_auth: yes
+        body_format: json
+        body: "{{ lookup('file', item) }}"
+        validate_certs: "{{ es_validate_certs }}"
+      when: load_templates.changed and es_start_service
+      with_fileglob:
+        - "{{ es_templates_fileglob | default('') }}"
+      run_once: True
+
+    - name: Copy jvm.options File
+      become: yes
+      template:
+        src: "{{ es_config_jvm }}"
+        dest: "{{ es_conf_dir }}/jvm.options"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "660"
+        force: yes
+      notify: restart elasticsearch
+
+    - name: Copy log4j2.properties File
+      become: yes
+      template:
+        src: "{{ es_config_log4j2 }}"
+        dest: "{{ es_conf_dir }}/log4j2.properties"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "660"
+        force: yes
+      notify: restart elasticsearch
+      when: es_config_log4j2 != ''
 
     - name: flush handlers
       meta: flush_handlers
@@ -190,14 +233,14 @@
     es_config:
       node.name: "{{ inventory_hostname }}"
       cluster.name: "{{ eol.cluster.name }}"
-      cluster.initial_master_nodes: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
+      cluster.initial_master_nodes: "10.251.19.5" # "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
       discovery.seed_hosts: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_nodes }}"
       http.port: "{{ eol.cluster.es_api_port }}"
       transport.port: "{{ eol.cluster.es_transport_port }}"
       node.roles: "{{ eol['roles'] }}" # Use bracket syntax to avoid adding quotes
-      bootstrap.memory_lock: true
+      bootstrap.memory_lock: false
       network.host: 0.0.0.0
-      xpack.monitoring.collection.enabled: true
+      xpack.monitoring.collection.enabled: false
     es_heap_size: "{{ (((ansible_facts['memtotal_mb'] / 1024) | round | int) / 2) | round | int }}g"
     es_api_port: "{{ eol.cluster.es_api_port }}"
     es_api_basic_auth_username: "{{ eol.cluster.api_username }}"
@@ -222,7 +265,38 @@
     es_config_default: "elasticsearch.j2"
     es_pid_dir: "/var/run/elasticsearch"
     es_repo_base: "https://artifacts.elastic.co"
-    es_use_repository: true
+    es_use_repository: false
+    es_custom_package_url: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.10.2-x86_64.rpm"
+    default_file: "/etc/sysconfig/elasticsearch"
+    es_home: "/usr/share/elasticsearch"
+    es_tmp_dir: "/tmp"
+    sysd_config_file: "/etc/systemd/system/elasticsearch.service.d/override.conf"
+    es_max_open_files: 65536
+    es_config_jvm: "jvm.options.j2"
+    es_config_log4j2: ""
+    oss_version: false
+
+    # JVM custom parameters
+    es_java_home: ''
+    es_jvm_custom_parameters: ''
+    es_heap_dump_path: "/var/lib/elasticsearch"
+
+
+    # SSL/TLS parameters
+    es_enable_auto_ssl_configuration: false
+    es_enable_http_ssl: false
+    es_enable_transport_ssl: true
+    es_ssl_upload: true
+    es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
+    es_ssl_key_password: ""
+    es_ssl_certificate: "files/certs/{{ inventory_hostname }}.crt"
+    es_ssl_certificate_authority: "files/certs/ca.crt"
+    es_ssl_certificate_path: "{{ es_conf_dir }}"
+    es_ssl_verification_mode: "certificate"
+    es_validate_certs: "yes"
+    es_delete_unmanaged_file: true
+    es_delete_unmanaged_native: true
+    es_action_auto_create_index: true
 
 
     

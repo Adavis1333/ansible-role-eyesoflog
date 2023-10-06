@@ -7,5 +7,5 @@ enabled=1
 autorefresh=1
 type=rpm-md
 {% if es_proxy_host is defined and es_proxy_host != '' and es_proxy_port is defined %}
-proxy=http://{{ es_proxy_host }}:{{es_proxy_port}}
+proxy=https://{{ es_proxy_host }}:{{es_proxy_port}}
 {% endif %}
