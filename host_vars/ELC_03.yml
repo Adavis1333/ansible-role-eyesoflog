@@ -1,0 +1,7 @@
+ansible_host: 10.251.19.3 
+eol:
+  roles: 
+    - master
+    - ingest
+    - data
+
