@@ -233,7 +233,7 @@
     es_config:
       node.name: "{{ inventory_hostname }}"
       cluster.name: "{{ eol.cluster.name }}"
-      cluster.initial_master_nodes: "10.251.19.5" # "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
+      cluster.initial_master_nodes: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
       discovery.seed_hosts: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_nodes }}"
       http.port: "{{ eol.cluster.es_api_port }}"
       transport.port: "{{ eol.cluster.es_transport_port }}"
