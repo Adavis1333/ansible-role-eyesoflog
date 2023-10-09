@@ -2,31 +2,39 @@ all:
   children:
     elasticsearch_ingest_nodes:
       hosts:
-        ELC_04: 
+        ELC-01: 
+          ansible_connection: ssh
+          ansible_ssh_user: root      
+        ELC-02: 
+          ansible_connection: ssh
+          ansible_ssh_user: root     
+        ELC-03: 
           ansible_connection: ssh
           ansible_ssh_user: root
 
     elasticsearch_master_initial_node:
       hosts:
+        ELC-01:
 
     elasticsearch_master_nodes:
       children:
         elasticsearch_master_initial_node:
       hosts:
-        ELC_04: 
+        ELC-02:
+        ELC-03:   
 
     elasticsearch_nodes:
       children:
         elasticsearch_master_nodes:
         elasticsearch_ingest_nodes:
         elasticsearch_master_only_nodes:
- #       kibana_nodes: # comment if Kibana node is not an Elasticsearch node.
+        kibana_nodes: # comment if Kibana node is not an Elasticsearch node.
 
-    #logstash_nodes:
-      #hosts:
-    # filebeat_ingest_nodes:
-    #   hosts:
-    #     eol-elastic-01:
-    # kibana_nodes:
-    #   hosts:
-    #     eol-kibana:
+    logstash_nodes:
+      hosts:
+    filebeat_ingest_nodes:
+      hosts:
+        ELC-01:
+    kibana_nodes:
+      hosts:
+        ELC-03:
