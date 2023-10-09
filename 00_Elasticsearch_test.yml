@@ -31,7 +31,6 @@
         state: present
       when: not es_use_repository
       register: elasticsearch_install_from_package
-      notify: restart elasticsearch
 
   # Elasticsearch Configuration
     - name: Create Configuration Directory
@@ -42,16 +41,6 @@
         owner: "{{ es_user }}"
         group: "{{ es_group }}"
         mode: "2750"
-
-    #Create pid directory
-    - name: Create PID Directory
-      become: yes
-      file:
-        path: "{{ es_pid_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "755"
 
     #Create required directories
     - name: Create Others Directories
@@ -77,7 +66,6 @@
         mode: "660"
         force: yes
       register: system_change
-      notify: restart elasticsearch
 
     #Copy the default file
     - name: Copy Default File
@@ -89,7 +77,6 @@
         group: "{{ es_group }}"
         mode: "660"
         force: yes
-      notify: restart elasticsearch
 
 
     - name: set fact use_system_d
@@ -97,16 +84,6 @@
    
     - name: set fact m_lock_enabled
       set_fact: m_lock_enabled={{ es_config['bootstrap.memory_lock'] is defined and es_config['bootstrap.memory_lock'] == True }}
-
-    #Copy the systemd specific file if systemd is installed
-    - when: use_system_d and (m_lock_enabled or es_max_open_files is defined)
-      become: yes
-      block:
-        - name: Make sure destination dir exists
-          file:
-            path: "{{ sysd_config_file | dirname }}"
-            state: directory
-            mode: "755"
 
     #Copy the systemd specific file if systemd is installed
     - when: use_system_d is defined
@@ -128,7 +105,38 @@
             force: yes
           notify:
           - reload systemd configuration
-          - restart elasticsearch
+          
+
+    ### START BLOCK elasticsearch keystore ###
+    - name: create the elasticsearch keystore
+      block:
+      - name: create the keystore if it doesn't exist yet
+        become: yes
+        command: >
+          {{es_home}}/bin/elasticsearch-keystore create
+        args:
+          creates: "{{ es_conf_dir }}/elasticsearch.keystore"
+        environment:
+          ES_PATH_CONF: "{{ es_conf_dir }}"
+
+      - name: Check if bootstrap password is set
+        become: yes
+        command: >
+         {{es_home}}/bin/elasticsearch-keystore list
+        register: list_keystore
+        changed_when: False
+        environment:
+          ES_PATH_CONF: "{{ es_conf_dir }}"
+        check_mode: no
+
+      - name: Create Bootstrap password for elastic user
+        become: yes
+        shell: echo {{ es_api_basic_auth_password | quote }} | {{ es_home }}/bin/elasticsearch-keystore add -x 'bootstrap.password'
+        when:
+          - es_api_basic_auth_username is defined and list_keystore is defined and es_api_basic_auth_username == 'elastic' and 'bootstrap.password' not in list_keystore.stdout_lines
+        environment:
+          ES_PATH_CONF: "{{ es_conf_dir }}"
+        no_log: true
 
     - name: Ensure certificate directory exists
       become: yes
@@ -153,7 +161,6 @@
         - "{{ es_ssl_certificate }}"
       when: es_ssl_upload and es_ssl_key and es_ssl_certificate
       #Restart if these change
-      notify: restart elasticsearch
       register: copy_certificates
  
     - name: Upload SSL Certificate Authority
@@ -165,7 +172,6 @@
         group: "{{ es_group }}"
         mode: "640"
       #Restart if this changes
-      notify: restart elasticsearch
       when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
 
     - name: ensure templates dir is created
@@ -207,7 +213,6 @@
         group: "{{ es_group }}"
         mode: "660"
         force: yes
-      notify: restart elasticsearch
 
     - name: Copy log4j2.properties File
       become: yes
@@ -218,11 +223,15 @@
         group: "{{ es_group }}"
         mode: "660"
         force: yes
-      notify: restart elasticsearch
       when: es_config_log4j2 != ''
 
-    - name: flush handlers
-      meta: flush_handlers
+    - name: start elasticsearch
+      become: yes
+      service: name=elasticsearch state=started enabled=yes
+      when:
+        - es_restart_on_change
+        - es_start_service
+      register: es_started 
 
   vars:
     es_version: 8.10.2
@@ -248,22 +257,18 @@
     es_users:
        native:
         #elastic:
-          #password: "NEWPASSWORD" # Uncomment one time if you want change elastic password and Update group_vars/all api_password after 
+          #password: "elastic" # Uncomment one time if you want change elastic password and Update group_vars/all api_password after 
         kibana_system:
            password: "{{ eol.cluster.kibana_password }}"
         remote_monitoring_user:
           password: "{{ eol.cluster.kibana_monitor_password }}"
-    es_delete_unmanaged_native: false
     es_delete_unmanaged_file: false
-    es_enable_http_ssl: true
-    es_enable_transport_ssl: true
     es_validate_certs: no # See isue https://github.com/elastic/ansible-elasticsearch/issues/679
     es_start_service: true
     es_restart_on_change: true
     es_user: elasticsearch
     es_group: elasticsearch
     es_config_default: "elasticsearch.j2"
-    es_pid_dir: "/var/run/elasticsearch"
     es_repo_base: "https://artifacts.elastic.co"
     es_use_repository: false
     es_custom_package_url: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.10.2-x86_64.rpm"
@@ -316,11 +321,5 @@
 
     # Restart service and ensure it is enabled
 
-    - name: restart elasticsearch
-      become: yes
-      service: name=elasticsearch state=restarted enabled=yes
-      when:
-        - es_restart_on_change
-        - es_start_service
-      register: es_restarted  
+ 
 
