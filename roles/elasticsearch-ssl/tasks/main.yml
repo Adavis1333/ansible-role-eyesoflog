@@ -1,0 +1,74 @@
+---
+- name: create the elasticsearch keystore
+  block:
+  - name: create the keystore if it doesn't exist yet
+    become: yes
+    command: >
+      {{es_home}}/bin/elasticsearch-keystore create
+    args:
+      creates: "{{ es_conf_dir }}/elasticsearch.keystore"
+    environment:
+      ES_PATH_CONF: "{{ es_conf_dir }}"
+
+  - name: Check if bootstrap password is set
+    become: yes
+    command: >
+      {{es_home}}/bin/elasticsearch-keystore list
+    register: list_keystore
+    changed_when: False
+    environment:
+      ES_PATH_CONF: "{{ es_conf_dir }}"
+    check_mode: no
+
+  - name: Create Bootstrap password for elastic user
+    become: yes
+    shell: echo {{ es_api_basic_auth_password | quote }} | {{ es_home }}/bin/elasticsearch-keystore add -x 'bootstrap.password'
+    when:
+      - es_api_basic_auth_username is defined and list_keystore is defined and es_api_basic_auth_username == 'elastic' and 'bootstrap.password' not in list_keystore.stdout_lines
+    environment:
+      ES_PATH_CONF: "{{ es_conf_dir }}"
+    no_log: true
+
+- name: Ensure certificate directory exists
+  become: yes
+  file:
+    dest: "{{ es_ssl_certificate_path }}"
+    state: directory
+    owner: root
+    group: "{{ es_group }}"
+    mode: "750"
+  when: es_ssl_upload
+
+- name: Upload SSL/TLS key and certificate
+  become: yes
+  copy:
+    src: "{{ item }}"
+    dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "640"
+  with_items:
+    - "{{ es_ssl_key }}"
+    - "{{ es_ssl_certificate }}"
+  when: es_ssl_upload and es_ssl_key and es_ssl_certificate
+  #Restart if these change
+  register: copy_certificates
+
+- name: Upload SSL Certificate Authority
+  become: yes
+  copy:
+    src: "{{ es_ssl_certificate_authority }}"
+    dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "640"
+  #Restart if this changes
+  when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
+
+- name: start elasticsearch
+  become: yes
+  service: name=elasticsearch state=started enabled=yes
+  when:
+    - es_restart_on_change
+    - es_start_service
+  register: es_started 

@@ -1,0 +1,37 @@
+---
+es_data_dirs: 
+  - "{{ eol.es_data_dir | default('/opt/elasticsearch/data')}}"
+es_log_dir: "{{ eol.es_log_dir | default('/var/log/eol/elasticsearch/') }}"
+es_config:
+  node.name: "{{ inventory_hostname }}"
+  cluster.name: "{{ eol.cluster.name }}"
+  cluster.initial_master_nodes: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_initial_node }}"
+  discovery.seed_hosts: "{{ hostvars[inventory_hostname].groups.elasticsearch_master_nodes }}"
+  http.port: "{{ eol.cluster.es_api_port }}"
+  transport.port: "{{ eol.cluster.es_transport_port }}"
+  node.roles: "{{ eol['roles'] }}" # Use bracket syntax to avoid adding quotes
+  bootstrap.memory_lock: false
+  network.host: 0.0.0.0
+  xpack.monitoring.collection.enabled: false
+es_heap_size: "{{ (((ansible_facts['memtotal_mb'] / 1024) | round | int) / 2) | round | int }}g"
+es_api_port: "{{ eol.cluster.es_api_port }}"
+es_user: elasticsearch
+es_group: elasticsearch
+es_config_default: "elasticsearch.j2"
+es_repo_base: "https://artifacts.elastic.co"
+es_use_repository: false
+es_custom_package_url: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.10.2-x86_64.rpm"
+default_file: "/etc/sysconfig/elasticsearch"
+es_tmp_dir: "/tmp"
+es_pid_dir: "/var/run/elasticsearch"
+
+sysd_config_file: "/etc/systemd/system/elasticsearch.service.d/override.conf"
+es_max_open_files: 65536
+es_config_jvm: "jvm.options.j2"
+es_config_log4j2: ""
+oss_version: false
+
+# JVM custom parameters
+es_java_home: ''
+es_jvm_custom_parameters: ''
+es_heap_dump_path: "/var/lib/elasticsearch"

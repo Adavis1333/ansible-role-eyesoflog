@@ -1,4 +1,9 @@
 ---
+es_version: 8.10.2
+es_home: "/usr/share/elasticsearch"
+es_conf_dir: "/etc/elasticsearch"
+es_start_service: true
+es_restart_on_change: true
 
 eol:
   cluster:

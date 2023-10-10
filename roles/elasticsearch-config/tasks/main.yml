@@ -1,0 +1,152 @@
+---
+- name: Ensure libselinux-python on CentOS 6.x
+  become: yes
+  yum: name=libselinux-python state=present update_cache=yes
+
+- name: RedHat - add Elasticsearch repo
+  become: yes
+  template:
+    src: 'elasticsearch.repo'
+    dest: '/etc/yum.repos.d/elasticsearch-{{ es_version }}.repo'
+  
+- name: RedHat - remove unused Elasticsearch repo
+  become: yes
+  file:
+    path: '/etc/yum.repos.d/elasticsearch-{{ es_version }}.repo'
+    state: absent
+  when: es_use_repository
+
+- name: RedHat - Install Elasticsearch
+  become: yes
+  yum:
+    name: '{% if es_custom_package_url is defined %}{{ es_custom_package_url }}{% else %}{{ es_rpm_url }}{% endif %}'
+    state: present
+  when: not es_use_repository
+  register: elasticsearch_install_from_package
+
+# Elasticsearch Configuration
+- name: Create Configuration Directory
+  become: yes
+  file:
+    path: "{{ es_conf_dir }}"
+    state: directory
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "2750"
+
+#Create required directories
+- name: Create Others Directories
+  become: yes
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "2750"
+  with_items:
+    - "{{ es_log_dir }}"
+    - "{{ es_data_dirs }}"
+
+#Copy the config template
+- name: Copy Configuration File
+  become: yes
+  template:
+    src: templates/elasticsearch.yml.j2
+    dest: "{{ es_conf_dir }}/elasticsearch.yml"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "660"
+    force: yes
+  register: system_change
+
+#Copy the default file
+- name: Copy Default File
+  become: yes
+  template:
+    src: "{{ es_config_default }}"
+    dest: "{{ default_file }}"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "660"
+    force: yes
+
+- name: set fact use_system_d
+  set_fact: use_system_d={{ (ansible_distribution == 'Debian' and ansible_distribution_version is version('8', '>=')) or (ansible_distribution in ['RedHat','CentOS'] and ansible_distribution_version is version('7', '>=')) or (ansible_distribution == 'Ubuntu' and ansible_distribution_version is version('15', '>=')) or (ansible_distribution == 'Amazon' and ansible_distribution_version is version('2', '>=')) }}
+
+- name: set fact m_lock_enabled
+  set_fact: m_lock_enabled={{ es_config['bootstrap.memory_lock'] is defined and es_config['bootstrap.memory_lock'] == True }}
+
+#Copy the systemd specific file if systemd is installed
+- when: use_system_d is defined
+  become: yes
+  block:
+    - name: Make sure destination dir exists
+      file:
+        path: "{{ sysd_config_file }}"
+        state: directory
+        mode: "755"
+
+    - name: Copy specific ElasticSearch Systemd config file
+      template:
+        src: "override.conf.j2"
+        dest: "{{ sysd_config_file }}"
+        owner: "{{ es_user }}"
+        group: "{{ es_group }}"
+        mode: "644"
+        force: yes
+      notify:
+      - reload systemd configuration
+
+- name: ensure templates dir is created
+  file:
+    path: "{{ es_conf_dir }}/templates"
+    state: directory
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "2750"
+
+- name: Copy templates to elasticsearch
+  copy: src={{ item }} dest={{ es_conf_dir }}/templates owner=root group={{ es_group }} mode=0660
+  register: load_templates
+  with_fileglob:
+    - "{{ es_templates_fileglob | default('') }}"
+
+- name: Install templates
+  uri:
+    url: "{{ es_api_uri }}/_template/{{item | filename}}"
+    method: PUT
+    status_code: 200
+    user: "{{es_api_basic_auth_username | default(omit)}}"
+    password: "{{es_api_basic_auth_password | default(omit)}}"
+    force_basic_auth: yes
+    body_format: json
+    body: "{{ lookup('file', item) }}"
+    validate_certs: "{{ es_validate_certs }}"
+  when: load_templates.changed and es_start_service
+  with_fileglob:
+    - "{{ es_templates_fileglob | default('') }}"
+  run_once: True
+
+- name: Copy jvm.options File
+  become: yes
+  template:
+    src: "{{ es_config_jvm }}"
+    dest: "{{ es_conf_dir }}/jvm.options"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "660"
+    force: yes
+
+- name: Copy log4j2.properties File
+  become: yes
+  template:
+    src: "{{ es_config_log4j2 }}"
+    dest: "{{ es_conf_dir }}/log4j2.properties"
+    owner: "{{ es_user }}"
+    group: "{{ es_group }}"
+    mode: "660"
+    force: yes
+  when: es_config_log4j2 != ''
+
+
+
