@@ -1,15 +1,6 @@
 ---
 es_api_basic_auth_username: "{{ eol.cluster.api_username }}"
 es_api_basic_auth_password: "{{ eol.cluster.api_password }}"
-es_users:
-    native:
-    #elastic:
-      #password: "elastic" # Uncomment one time if you want change elastic password and Update group_vars/all api_password after 
-    kibana_system:
-        password: "{{ eol.cluster.kibana_password }}"
-    remote_monitoring_user:
-      password: "{{ eol.cluster.kibana_monitor_password }}"
-es_delete_unmanaged_file: false
 es_enable_auto_ssl_configuration: false
 es_enable_http_ssl: false
 es_enable_transport_ssl: true
