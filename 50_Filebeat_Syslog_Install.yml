@@ -9,7 +9,7 @@
     - name: Install Filebeat | Ensure all pre-requisites packages are installed
       become: yes
       yum:
-        name: "filebeat"
+        name: "https://artifacts.elastic.co/downloads/beats/filebeat/filebeat-8.10.3-x86_64.rpm"
         state: present
 
     - name: Install Filebeat | Copy certificates

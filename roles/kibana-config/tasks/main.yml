@@ -3,7 +3,7 @@
 - name: Install Kibana | Ensure kibana packages is installed
   become: yes
   yum:
-    name: "https://artifacts.elastic.co/downloads/kibana/kibana-8.10.2-x86_64.rpm"
+    name: "https://artifacts.elastic.co/downloads/kibana/kibana-8.10.3-x86_64.rpm"
     state: present
     update_cache: yes
 
