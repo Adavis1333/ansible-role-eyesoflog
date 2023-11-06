@@ -1,9 +1,31 @@
 ---
-- name: Install Metricbeat | Ensure all pre-requisites packages are installed
+- set_fact: "es_major_version={{ es_version.split('.')[0] }}.x"
+  when:
+      - es_major_version is undefined
+  tags:
+      - always
+
+- name: Set the defaults here otherwise they can't be overriden in the same play if the role is called twice
+  set_fact:
+    metricbeat_repo_name: "{{ es_major_version }}"
+
+
+- name: RedHat - add MetricBeat repo
+  become: yes
+  template:
+    src: 'metricbeat.repo'
+    dest: '/etc/yum.repos.d/metricbeat-{{ es_major_version }}.repo'
+
+- name: RedHat - Install Metricbeat
   become: yes
   yum:
-    name: "https://artifacts.elastic.co/downloads/beats/metricbeat/metricbeat-8.10.3-x86_64.rpm"
+    name: '{{ metricbeat_package_name }}{% if es_version is defined and es_version != ""  %}-{{ es_version }}{% endif %}'
     state: present
+    update_cache: yes
+  retries: 5
+  delay: 10
+  environment:
+    KIBANA_PATH_CONF: "{{ metricbeat_conf_dir }}"
 
 - name: Install Metricbeat | Copy certificates
   become: yes
@@ -13,10 +35,12 @@
     owner: root
     group: root
     mode: '0644'
+  no_log: true
   loop:
-    - "{{ inventory_hostname }}_privatekey.pem"
+    - "{{ inventory_hostname }}.key"
     - "{{ inventory_hostname }}.crt"
     - "{{ eol.cluster.eol_ca_cert_name }}"
+    - "{{ eol.cluster.eol_ca_cert_key }}"
     
 - name: Install Metricbeat | Configure application
   become: yes

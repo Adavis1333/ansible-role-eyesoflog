@@ -108,7 +108,7 @@
     force_basic_auth: yes
     validate_certs: no
   when: native_users[item].password is defined
-  # no_log: True
+  no_log: True
   with_items: "{{ users_to_ignore | default([]) }}"
 
 - name: set fact users_to_modify

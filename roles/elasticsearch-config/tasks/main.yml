@@ -1,22 +1,38 @@
 ---
-- name: Ensure libselinux-python on CentOS 6.x
-  become: yes
-  yum: name=libselinux-python state=present update_cache=yes
+# - name: Ensure libselinux-python on CentOS 6.x
+#   become: yes
+#   yum: name=libselinux-python state=present update_cache=yes
+
+- set_fact: "es_major_version={{ es_version.split('.')[0] }}.x"
+  when:
+      - es_major_version is undefined
+  tags:
+      - always
+
+- name: Set the defaults here otherwise they can't be overriden in the same play if the role is called twice
+  set_fact:
+    es_repo_name: "{{ es_major_version }}"
+
 
 - name: RedHat - add Elasticsearch repo
   become: yes
   template:
     src: 'elasticsearch.repo'
     dest: '/etc/yum.repos.d/elasticsearch-{{ es_version }}.repo'
-  
-- name: RedHat - remove unused Elasticsearch repo
-  become: yes
-  file:
-    path: '/etc/yum.repos.d/elasticsearch-{{ es_version }}.repo'
-    state: absent
-  when: es_use_repository
 
 - name: RedHat - Install Elasticsearch
+  become: yes
+  yum:
+    name: '{{ es_package_name }}{% if es_version is defined and es_version != ""  %}-{{ es_version }}{% endif %}'
+    state: present
+    update_cache: yes
+  when: es_use_repository and not ansible_check_mode
+  retries: 5
+  delay: 10
+  environment:
+    ES_PATH_CONF: "{{ es_conf_dir }}"
+
+- name: RedHat - Install Elasticsearch from URL
   become: yes
   yum:
     name: '{% if es_custom_package_url is defined %}{{ es_custom_package_url }}{% else %}{{ es_rpm_url }}{% endif %}'
@@ -82,7 +98,7 @@
   block:
     - name: Make sure destination dir exists
       file:
-        path: "{{ sysd_config_file }}"
+        path: "{{  sysd_config_file | dirname }}"
         state: directory
         mode: "755"
 

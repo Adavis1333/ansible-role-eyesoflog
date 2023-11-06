@@ -57,11 +57,14 @@
 - name: Upload SSL Certificate Authority
   become: yes
   copy:
-    src: "{{ es_ssl_certificate_authority }}"
-    dest: "{{ es_ssl_certificate_path }}/{{ es_ssl_certificate_authority | basename }}"
+    src: "{{ item }}"
+    dest: "{{ es_ssl_certificate_path }}/{{ item | basename }}"
     owner: "{{ es_user }}"
     group: "{{ es_group }}"
     mode: "640"
+  with_items:
+    - "{{ es_ssl_key_authority }}"
+    - "{{ es_ssl_certificate_authority }}"
   #Restart if this changes
   when: es_ssl_upload and (es_ssl_certificate_authority is defined) and (es_ssl_certificate_authority|length > 0)
 

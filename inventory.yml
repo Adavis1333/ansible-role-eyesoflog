@@ -2,26 +2,29 @@ all:
   children:
     elasticsearch_ingest_nodes:
       hosts:
-        ELC-01: 
+        SRV-ELASTIC01: 
           ansible_connection: ssh
           ansible_ssh_user: root      
-        ELC-02: 
+        SRV-ELASTIC02: 
           ansible_connection: ssh
           ansible_ssh_user: root     
-        ELC-03: 
+        SRV-ELASTIC03: 
+          ansible_connection: ssh
+          ansible_ssh_user: root
+        SRV-KIBANA: 
           ansible_connection: ssh
           ansible_ssh_user: root
 
     elasticsearch_master_initial_node:
       hosts:
-        ELC-01:
+        SRV-ELASTIC01:
 
     elasticsearch_master_nodes:
       children:
         elasticsearch_master_initial_node:
       hosts:
-        ELC-02:
-        ELC-03:   
+        SRV-ELASTIC02:
+        SRV-KIBANA:   
 
     elasticsearch_nodes:
       children:
@@ -32,9 +35,10 @@ all:
 
     logstash_nodes:
       hosts:
+        SRV-ELASTIC01:
     filebeat_ingest_nodes:
       hosts:
-        ELC-01:
+        SRV-ELASTIC01:
     kibana_nodes:
       hosts:
-        ELC-03:
+        SRV-KIBANA:

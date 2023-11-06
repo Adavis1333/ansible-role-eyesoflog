@@ -1,7 +1,9 @@
 ---
-es_version: 8.10.2
+es_version: 8.10.3
 es_home: "/usr/share/elasticsearch"
 es_conf_dir: "/etc/elasticsearch"
+kibana_conf_dir: "/etc/kibana"
+metricbeat_conf_dir: "/etc/metricbeat"
 es_start_service: true
 es_restart_on_change: true
 es_users:
@@ -14,7 +16,7 @@ es_users:
       password: "{{ eol.cluster.kibana_monitor_password }}"
   
 es_api_scheme: "https"
-es_api_host: "10.251.19.3"
+es_api_host: "localhost"
 es_api_port: 9200
 es_api_uri: "{{ es_api_scheme }}://{{ es_api_host }}:{{ es_api_port }}"
 es_security_api: "{{ '_security' if es_version is version('7.0.0', '>=') else '_xpack/security' }}"
@@ -22,7 +24,7 @@ es_security_api: "{{ '_security' if es_version is version('7.0.0', '>=') else '_
 
 eol:
   cluster:
-    name: "Antoine_Cluster_Test"
+    name: "Elastic-PST66"
     es_api_port: 9200
     es_transport_port: 9300
     
@@ -33,8 +35,11 @@ eol:
     kibana_password: "kibanapassword"
     kibana_monitor_username: "remote_monitoring_user"
     kibana_monitor_password: "eol_Kibana_monitor"
+    api_logstash_username: "logstash_write"
+    api_logstash_password: "xcpp.U79_K@Jr!"
 
     kibana_server_port: 5601
     kibana_encryptionKey: "adfr452dgj_sdgfg-5qaf!ffq@xD582qsqs45aE0L2ddqq95z" # Generate an encryption key
     eol_ca_cert_name: "ca.crt"
+    eol_ca_cert_key: "ca.key"
     #ssl_key_passphrase: "adfd5865Dnc!ds5547qad5f8g6g2abyctd" # Uncomment if private key is encrypted. (see README)

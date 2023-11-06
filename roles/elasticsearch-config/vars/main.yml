@@ -10,16 +10,16 @@ es_config:
   http.port: "{{ eol.cluster.es_api_port }}"
   transport.port: "{{ eol.cluster.es_transport_port }}"
   node.roles: "{{ eol['roles'] }}" # Use bracket syntax to avoid adding quotes
-  bootstrap.memory_lock: false
+  bootstrap.memory_lock: true
   network.host: 0.0.0.0
   xpack.monitoring.collection.enabled: false
-es_heap_size: "{{ (((ansible_facts['memtotal_mb'] / 1024) | round | int) / 2) | round | int }}g"
+# es_heap_size: "{{ (((ansible_facts['memtotal_mb'] / 1024) | round | int) / 2) | round | int }}g"
 es_api_port: "{{ eol.cluster.es_api_port }}"
 es_user: elasticsearch
 es_group: elasticsearch
 es_config_default: "elasticsearch.j2"
 es_repo_base: "https://artifacts.elastic.co"
-es_use_repository: false
+es_use_repository: true
 es_custom_package_url: "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-8.10.3-x86_64.rpm"
 default_file: "/etc/sysconfig/elasticsearch"
 es_tmp_dir: "/tmp"

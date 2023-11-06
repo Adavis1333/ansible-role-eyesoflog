@@ -1,0 +1,14 @@
+---
+# handlers file for logstash-config
+
+- name: restart logstash
+  become: yes
+  systemd:
+    name: logstash
+    state: restarted
+
+- name: restart logstash
+  become: yes
+  systemd:
+    name: logstash
+    state: restarted

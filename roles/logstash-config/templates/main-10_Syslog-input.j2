@@ -1,0 +1,89 @@
+input {
+  tcp {
+    port => 5514
+    type => syslog
+    tags => ["tcp"]
+    dns_reverse_lookup_enabled => false
+  }
+  udp {
+    port => 5514
+    type => syslog
+    ecs_compatibility => v1
+  }
+}
+
+
+filter {
+
+  if "tcp" in [tags] {
+    mutate {
+      rename => { "host" => "[host][ip]" }
+    }
+  }
+
+  mutate {
+    copy => { "[host][ip]" => "[host][hostname]" }
+  }
+
+  dns {
+    reverse => [ "[host][hostname]" ]
+    action => "replace"
+  }
+
+
+# Filter by type logs
+
+  # Citrix ADC / Netscaler  Log - filter on ip address
+  cidr {
+    address => [ "%{[host][ip]}"]
+    network => [ "192.168.150.2/32" ]
+    add_tag => [ "netscaler","citrix", "infra"]
+    add_field => { "[event][provider]" => "netscaler" }
+  }
+
+  # Citrix ADC / Netscaler  Log - filter on ip address
+  cidr {
+    address => [ "%{[host][ip]}"]
+    network => [ "192.168.1.254/32" ]
+    add_tag => [ "switch","alcatel", "infra"]
+    add_field => { "[event][provider]" => "switch-alcatel" }
+  }
+
+
+# Final transformation
+  if "devparsing" in [tags]
+  {
+    mutate {
+      replace => { "[event][provider]" => "devparsing" }
+    }
+  }
+  if ![event][provider]
+  {
+      mutate 
+      {
+        #add_field => { "[event][provider]" => "default" }
+        add_field => { 
+          "[@metadata][target_index]" => "eol-default" 
+          "[@metadata][pipeline]" => "eol-default-pipeline"
+          }
+      }
+  }
+
+# Fix index and pipeline if not defined before
+
+    if ![@metadata][target_index]
+    {
+      mutate {
+          add_field => { 
+            "[@metadata][target_index]" => "eol-" 
+          }
+      }
+    }
+    
+    if ![@metadata][pipeline]
+    {
+      mutate {
+        add_field => { "[@metadata][pipeline]" => "eol-%{[event][provider]}-pipeline" }
+      }
+    }
+}

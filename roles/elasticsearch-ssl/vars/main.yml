@@ -5,10 +5,11 @@ es_enable_auto_ssl_configuration: false
 es_enable_http_ssl: false
 es_enable_transport_ssl: true
 es_ssl_upload: true
-es_ssl_key: "files/certs/{{ inventory_hostname }}_privatekey.pem"
+es_ssl_key: "files/certs/{{ inventory_hostname }}.key"
 es_ssl_key_password: ""
 es_ssl_certificate: "files/certs/{{ inventory_hostname }}.crt"
 es_ssl_certificate_authority: "files/certs/ca.crt"
+es_ssl_key_authority: "files/certs/ca.key"
 es_ssl_certificate_path: "{{ es_conf_dir }}"
 es_ssl_verification_mode: "certificate"
 es_validate_certs: "yes"

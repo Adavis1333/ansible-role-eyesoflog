@@ -1,0 +1,9 @@
+ansible_host: 192.168.200.202
+eol:
+  roles: 
+    - ingest
+    - data
+
+# Fix Data and Log dir for Elasticsearch here if needed
+  es_log_dir: "/data/elasticsearch_logs"
+  es_data_dir: "/data/elasticsearch_data"

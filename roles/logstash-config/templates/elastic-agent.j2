@@ -1,0 +1,25 @@
+input {
+  elastic_agent {
+    port => 5044
+    ssl => true
+    ssl_certificate_authorities => ["/etc/logstash/certs/{{ eol.cluster.eol_ca_cert_name }}"]
+    ssl_certificate => "/etc/logstash/certs/SRV-ELASTIC-VIPLOGSTASH.crt"
+    ssl_key => "/etc/logstash/certs/SRV-ELASTIC-VIPLOGSTASH.key"
+    ssl_verify_mode => "peer"
+  }
+}
+
+filter {
+ mutate { remove_field => [ "[event][original]" ] }
+}
+
+
+output {
+  elasticsearch {
+    hosts =>  [{% for es_host in groups['elasticsearch_ingest_nodes'] %}"https://{{ es_host }}:{{ eol.cluster.es_api_port }}"{% if not loop.last %},{% endif %}{% endfor %}]
+    api_key => "EhuhPYsBrfsXsTJtgKB-:wU13n0sQT4K6CPoD0co9wg"
+    data_stream => true
+    ssl => true
+    cacert => '/etc/logstash/certs/{{ eol.cluster.eol_ca_cert_name }}'
+  }
+}

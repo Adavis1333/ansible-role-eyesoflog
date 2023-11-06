@@ -83,7 +83,7 @@ Afin d'utiliser ce playbook, les éléments suivants doivent être modifiés / a
 - variables présents dans les fichiers host_vars:
   - pour chaque hôte : les adresses IP, et le rôle du noeud dans le cluster;
 - Remplacement des fichiers de certificat dans files/certs/ sous le format:
-    - hostame_privatekey.pem
+    - hostame.key
       - où "hostname" correspond au nom de la machine dans l'inventaire Ansible;
       - Pour une raison inconnue, je n'ai pas réussi à déployer des clé privées chiffrés (erreur systématique pour déchiffrer la clé)
     - eol-ca.crt (mettre à jour la variable si le nom est modifié);
@@ -163,7 +163,7 @@ Pour le monitorring, un cluster dédié est normalement préconisé. Comme c'est
 Par mesure de sécurité, nous forçons l'utilisation de certificat au sein de l'architecture Eyes of Log.
 
 Il faut donc veiller à générer l'ensemble des certificats SSL pour chaque serveur, et les déposer dans le dossier files/certs sous la forme:
-- hostname_privatekey.pem   ==> Clé privé pour le serveur "hostname"
+- hostname.key   ==> Clé privé pour le serveur "hostname"
 - hostname.crt  ==> Certificat pour le serveur "hostname"
 - eol-ca.crt ==> Certificat de l'autorité de certification.
 
@@ -185,7 +185,7 @@ openssl pkcs12 -in eol-bva-elastic-01.pfx -nocerts -nodes -out eol-bva-elastic-0
 
 4) Convertir la clé privée en RSA  (elle sera toujours chiffré)
 ```
-openssl rsa -in eol-bva-elastic-01_privatekey_enc.pem -out eol-bva-elastic-01_privatekey.pem
+openssl rsa -in eol-bva-elastic-01_privatekey_enc.pem -out eol-bva-elastic-01.key
 ```
 
 5) Exporter le certificat

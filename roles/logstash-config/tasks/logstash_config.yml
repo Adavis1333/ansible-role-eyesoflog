@@ -1,0 +1,23 @@
+- name: copy logstash configuration
+  become: yes
+  copy:
+    src: "templates/{{ item }}"
+    dest: /etc/logstash/
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - "pipelines.yml"
+    - "logstash.yml"
+
+- name: Create Logstash conf.d configuration files.
+  become: yes
+  template:
+    src: "{{ item }}"
+    dest: "/etc/logstash/conf.d/{{ item | basename  | splitext | first }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+  with_fileglob:
+    - "templates/*.j2"
+  notify: restart logstash

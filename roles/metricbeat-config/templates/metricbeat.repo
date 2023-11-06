@@ -1,0 +1,8 @@
+[metricbeat-{{ metricbeat_repo_name }}]
+name=Metricbeat repository for {{ metricbeat_repo_name }} packages
+baseurl=https://artifacts.elastic.co/packages/{{ metricbeat_repo_name }}/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md

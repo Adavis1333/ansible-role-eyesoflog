@@ -1,0 +1,8 @@
+{
+  "description" : "EoL Axians - Pipeline for Alcatel switch log",
+  "version" : 2021030201,
+  "processors": [
+    {}
+  ]
+  
+}

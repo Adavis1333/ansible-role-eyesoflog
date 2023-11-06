@@ -1,0 +1,15 @@
+---
+# tasks file for logstash-config
+
+- name: Install Logstash on Red Hat
+  ansible.builtin.include_tasks:
+    file: install_redhat.yml
+  when: ansible_distribution in ['RedHat','OracleLinux']
+  tags: 
+    - logstash-install
+
+- name: Configure Logstash on Red Hat
+  ansible.builtin.include_tasks:
+    file: logstash_config.yml
+  tags: 
+    - logstash-config

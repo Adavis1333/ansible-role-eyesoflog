@@ -1,11 +1,31 @@
 ---
+- set_fact: "es_major_version={{ es_version.split('.')[0] }}.x"
+  when:
+      - es_major_version is undefined
+  tags:
+      - always
 
-- name: Install Kibana | Ensure kibana packages is installed
+- name: Set the defaults here otherwise they can't be overriden in the same play if the role is called twice
+  set_fact:
+    kibana_repo_name: "{{ es_major_version }}"
+
+
+- name: RedHat - add Kibana repo
+  become: yes
+  template:
+    src: 'kibana.repo'
+    dest: '/etc/yum.repos.d/kibana-{{ es_major_version }}.repo'
+
+- name: RedHat - Install Kibana
   become: yes
   yum:
-    name: "https://artifacts.elastic.co/downloads/kibana/kibana-8.10.3-x86_64.rpm"
+    name: '{{ kibana_package_name }}{% if es_version is defined and es_version != ""  %}-{{ es_version }}{% endif %}'
     state: present
     update_cache: yes
+  retries: 5
+  delay: 10
+  environment:
+    KIBANA_PATH_CONF: "{{ kibana_conf_dir }}"
 
 - name: Installing Kibana | Manage certificates
   block:
@@ -26,10 +46,12 @@
     owner: root
     group: root
     mode: '0644'
+  no_log: true
   loop:
-    - "{{ inventory_hostname }}_privatekey.pem"
+    - "{{ inventory_hostname }}.key"
     - "{{ inventory_hostname }}.crt"
     - "{{ eol.cluster.eol_ca_cert_name }}"
+    - "{{ eol.cluster.eol_ca_cert_key }}"
 
 - name: Install Kibana | Configure application
   become: yes

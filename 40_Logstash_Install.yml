@@ -1,0 +1,11 @@
+---
+- name: Install Logstash
+  hosts: logstash_nodes
+  gather_facts: true
+  vars:
+    logstash_repo_name : "8.x"
+
+  roles: 
+    - role: roles/logstash-config
+      tags: 
+        - always

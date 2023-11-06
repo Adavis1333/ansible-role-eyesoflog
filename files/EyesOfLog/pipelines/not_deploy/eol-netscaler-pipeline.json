@@ -1,0 +1,43 @@
+{
+  "description": "EoL Axians - Pipeline for Netscaler Citrix ADC",
+  "version": 2021030201,
+  "processors": [
+    {
+      "grok": {
+        "field": "message",
+        "patterns": [
+          "<%{POSINT:syslog_pri}> %{YEAR:temp_year}/%{MONTHNUM:temp_month}/%{MONTHDAY:temp_day}:%{TIME:temp_time} %{DATA:temp_timzone} %{DATA:host.hostname} %{DATA:todefine_01} : %{DATA:todefine_02} %{DATA:event.module} %{DATA:event.category} %{DATA:todefine_03} :  %{GREEDYDATA:message}",
+          "<%{POSINT:syslog_pri}> %{YEAR:temp_year}/%{MONTHNUM:temp_month}/%{MONTHDAY:temp_day}:%{TIME:temp_time} %{DATA:temp_timzone} %{DATA:host.hostname} %{DATA:todefine_01} : %{DATA:todefine_02} %{DATA:event.module} %{DATA:event.category} %{DATA:todefine_03} : %{GREEDYDATA:message}",
+          "%{GREEDYDATA:message}"
+          ]
+      }
+    },
+    {
+      "grok": {
+        "field": "message",
+        "patterns": [
+          "%{WORD}: %{HTTPDUSER:username}, %{WORD}: %{IPORHOST:source.ip}:%{POSINT:source.port}, %{WORD}: %{IPORHOST:destination.ip}:%{POSINT:destination.port}, %{GREEDYDATA:message}",
+          "%{GREEDYDATA:message}"
+          ],
+        "if": "ctx.event?.module == 'RDP'"
+      }
+    },
+    {
+      "grok": {
+        "field": "message",
+        "patterns": [
+          "%{WORD} %{HTTPDUSER:username} - %{WORD} %{IP:source.ip} - %{WORD} \"%{GREEDYDATA:command}\" - %{WORD} \"%{WORD:status}\""
+          ],
+        "if": "ctx.event?.module == 'GUI'"
+      }
+    }
+  ],
+  "on_failure": [
+    {
+      "set": {
+        "field": "error.message",
+        "value": "{{ _ingest.on_failure_message }}, {{ _ingest.on_failure_processor_type }}, {{ _ingest.on_failure_processor_tag }}"
+      }
+    }
+  ]
+}
