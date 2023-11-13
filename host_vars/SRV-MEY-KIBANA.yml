@@ -1,7 +1,6 @@
-ansible_host: 192.168.200.200
+ansible_host: 172.31.14.25
 eol:
   roles: 
     - master
     - ingest
     
-

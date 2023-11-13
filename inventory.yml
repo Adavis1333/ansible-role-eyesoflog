@@ -2,29 +2,27 @@ all:
   children:
     elasticsearch_ingest_nodes:
       hosts:
-        SRV-ELASTIC01: 
+        SRV-MEY-KIBANA: 
           ansible_connection: ssh
-          ansible_ssh_user: root      
-        SRV-ELASTIC02: 
+          ansible_ssh_user: axians
+        SRV-MEY-ELASTIC01: 
           ansible_connection: ssh
-          ansible_ssh_user: root     
-        SRV-ELASTIC03: 
+          ansible_ssh_user: axians      
+        SRV-MEY-ELASTIC02: 
           ansible_connection: ssh
-          ansible_ssh_user: root
-        SRV-KIBANA: 
-          ansible_connection: ssh
-          ansible_ssh_user: root
+          ansible_ssh_user: axians     
+
 
     elasticsearch_master_initial_node:
       hosts:
-        SRV-ELASTIC01:
+        SRV-MEY-ELASTIC01:
 
     elasticsearch_master_nodes:
       children:
         elasticsearch_master_initial_node:
       hosts:
-        SRV-ELASTIC02:
-        SRV-KIBANA:   
+        SRV-MEY-ELASTIC02:
+        SRV-MEY-KIBANA:   
 
     elasticsearch_nodes:
       children:
@@ -33,12 +31,12 @@ all:
         elasticsearch_master_only_nodes:
         kibana_nodes: # comment if Kibana node is not an Elasticsearch node.
 
-    logstash_nodes:
-      hosts:
-        SRV-ELASTIC01:
-    filebeat_ingest_nodes:
-      hosts:
-        SRV-ELASTIC01:
+    # logstash_nodes:
+    #   hosts:
+    #     SRV-ELASTIC01:
+    # filebeat_ingest_nodes:
+    #   hosts:
+    #     SRV-ELASTIC01:
     kibana_nodes:
       hosts:
-        SRV-KIBANA:
+        SRV-MEY-KIBANA:
